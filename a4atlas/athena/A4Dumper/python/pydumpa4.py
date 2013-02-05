@@ -407,7 +407,7 @@ class AOD2A4(AOD2A4Base):
         self.MuonParameters = MuonParameters
         self.egammaParameters = egammaParameters
         self.egammaPID = egammaPID
-        self.empp_helper = PyCintex.makeClass("isEMPlusPlusHelper")
+        self.empp_helper = PyCintex.makeClass("isEMPlusPlusHelper")()
 
         if self.year == 2010: 
             gROOT.ProcessLine(".L checkOQ.C++")
@@ -729,6 +729,21 @@ class AOD2A4(AOD2A4Base):
             vxs.append(v)
         return vxs
 
+    def truth_vertices(self):
+        vxs = []
+        GEN_AOD = self.sg["GEN_AOD"]
+        vertices = make_list(GEN_AOD[0].vertices_begin(),GEN_AOD[0].vertices_end())
+        for i, vx in enumerate(vertices):
+            if i==10: break
+            v = Vertex()
+            v.index = i
+            pos = vx.position()
+            v.x, v.y, v.z = pos.x(), pos.y(), pos.z()
+            vxs.append(v)
+        return vxs
+
+
+
     def perigee_z0_d0(self, p, trk):
         if trk and len(self.PV) > 0:
             res = self.tool_ttv.d0z0AtVertex(trk, self.PV_rec[0].position())
@@ -742,7 +757,8 @@ class AOD2A4(AOD2A4Base):
             #print type(self.PV[0])
             #print type(self.PV_rec)
             #print type(self.PV_rec[0])
-            res = self.tool_ttv.d0z0AtVertex_unbiased(trk, self.PV[0])
+            #print type(trk)
+            res = self.tool_ttv.d0z0AtVertex_unbiased(trk, self.PV_rec[0].position(), self.PV[0])
             p.d0, p.d0err = res.first.first, res.first.second
             p.z0, p.z0err = res.second.first, res.second.second
             
@@ -909,6 +925,7 @@ class AOD2A4(AOD2A4Base):
             mettruth = self.sg["MET_Truth"]
             event.met_Truth_NonInt.x = mettruth.exTruth(mettruth.NonInt)
             event.met_Truth_NonInt.y = mettruth.eyTruth(mettruth.NonInt)
+            event.truth_vertices.extend(self.truth_vertices())
 
         event.jets_antikt4lctopo.extend(self.jets("AntiKt4LCTopoJets"))
         event.jets_antikt4h1topoem.extend(self.jets("AntiKt4TopoEMJets"))
@@ -1035,6 +1052,7 @@ else:
     athena_setup(None, -1)
 
 # JVF fix by Scott Snyder
+#### NOTE not needed for new release?
 if True:
     from RecExConfig.RecFlags import rec
     rec.UserExecs = ["myjets()"]
@@ -1043,15 +1061,16 @@ if True:
 
         from JetMomentTools.SetupJetMomentTools import getJetVertexAssociationTool
         jvatool = getJetVertexAssociationTool('AntiKt', 0.4, 'Topo') # parameters are irrelevant, these will work for any jets
-        jvatool_lc = getJetVertexAssociationTool('AntiKt', 0.4, 'LCTopo') # parameters are irrelevant, these will work for any jets
+        #jvatool_lc = getJetVertexAssociationTool('AntiKt', 0.4, 'LCTopo') # parameters are irrelevant, these will work for any jets
         make_JetMomentGetter( 'AntiKt4TopoEMJets' , [jvatool] ) 
-        make_JetMomentGetter( 'AntiKt4LCTopoJets' , [jvatool_lc] ) 
+        #make_JetMomentGetter( 'AntiKt4LCTopoJets' , [jvatool_lc] ) 
 
+# do autoconfiguration of input
+include ("RecExCommon/RecExCommon_topOptions.py")
 
 from egammaAnalysisTools.CaloIsolationWrapperTool import CaloIsolationWrapperTool
 caloIsoTool = CaloIsolationWrapperTool()
-# do autoconfiguration of input
-include ("RecExCommon/RecExCommon_topOptions.py")
+from MuonCombinedTimingTools import MuonCombinedTimingConfig
 
 ana = AOD2A4("AOD2A4", int(options["year"]), options)
 topSequence += ana
